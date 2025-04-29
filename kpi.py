@@ -53,11 +53,114 @@ kpi_options = {
 
 if page == "KPI Dashboard":
     st.title("\U0001F4CA KPI Dashboard")
-    # ... (existing KPI Dashboard code)
+
+    with st.form("KPI Form"):
+        st.subheader("Enter KPI Data:")
+        kpi_date = st.date_input("Date", value=date.today())
+        category = st.selectbox("Category", list(kpi_options.keys()))
+        kpi_name = st.selectbox("KPI Name", list(kpi_options.keys()))
+        default_target = kpi_options.get(kpi_name, "")
+        target = st.text_input("Target Value", value=default_target)
+        actual = st.text_input("Actual Value")
+        notes = st.text_area("Notes/Actions")
+        submit_kpi = st.form_submit_button("Submit KPI")
+
+    if submit_kpi:
+        try:
+            actual_val = float(actual.replace('%','').replace('$','').replace('Units','').replace('minutes','').replace('hours','').strip())
+            target_val = float(target.replace('%','').replace('$','').replace('Units','').replace('minutes','').replace('hours','').strip())
+            if "<" in target:
+                status = "Met" if actual_val < target_val else "Missed"
+            elif ">" in target:
+                status = "Met" if actual_val > target_val else "Missed"
+            else:
+                status = "Met" if actual_val == target_val else "Missed"
+        except:
+            status = "Check Data"
+
+        new_kpi = {
+            'Date': kpi_date,
+            'Category': category,
+            'KPI': kpi_name,
+            'Target': target,
+            'Actual': actual,
+            'Status': status,
+            'Notes/Actions': notes
+        }
+        kpi_data = pd.concat([kpi_data, pd.DataFrame([new_kpi])], ignore_index=True)
+        kpi_data.to_csv(kpi_csv, index=False)
+        st.success(f"KPI for {kpi_name} on {kpi_date} saved!")
+
+    st.subheader("\U0001F4CB KPI Records")
+    filter_category = st.selectbox("Filter by Category", options=["All"] + list(kpi_data['Category'].unique()))
+    filter_month = st.selectbox("Filter by Month", options=["All"] + list(kpi_data['Date'].apply(lambda x: str(x)[:7]).unique()))
+
+    filtered_kpi_data = kpi_data.copy()
+    if filter_category != "All":
+        filtered_kpi_data = filtered_kpi_data[filtered_kpi_data['Category'] == filter_category]
+    if filter_month != "All":
+        filtered_kpi_data = filtered_kpi_data[filtered_kpi_data['Date'].apply(lambda x: str(x)[:7]) == filter_month]
+
+    def highlight_status(val):
+        color = 'green' if val == 'Met' else 'red' if val == 'Missed' else 'gray'
+        return f'background-color: {color}'
+
+    if not filtered_kpi_data.empty:
+        styled_kpi = filtered_kpi_data.style.applymap(highlight_status, subset=['Status'])
+        st.dataframe(styled_kpi)
+
+    st.subheader("\U0001F4C9 KPI Status Overview")
+    if not filtered_kpi_data.empty:
+        status_counts = filtered_kpi_data['Status'].value_counts()
+        fig, ax = plt.subplots()
+        ax.pie(status_counts, labels=status_counts.index, autopct='%1.1f%%', startangle=90, colors=['green', 'red', 'gray'])
+        ax.axis('equal')
+        st.pyplot(fig)
 
 elif page == "Daily CTQ Tracker":
     st.title("\U0001F4C8 Daily CTQ Tracker")
-    # ... (existing Daily CTQ Tracker code)
+
+    with st.form("CTQ Form"):
+        st.subheader("Enter Today's CTQ Data:")
+        entry_date = st.date_input("Date", value=date.today())
+        defect_rate = st.number_input("Daily Defect Rate (%)", min_value=0.0, max_value=100.0, value=0.0)
+        fp_yield = st.number_input("First Pass Yield (%)", min_value=0.0, max_value=100.0, value=100.0)
+        downtime_events = st.number_input("Downtime Events (#)", min_value=0, value=0)
+        scrap_units = st.number_input("Scrap Units (#)", min_value=0, value=0)
+        calibration_misses = st.number_input("Calibration Misses (#)", min_value=0, value=0)
+        submit = st.form_submit_button("Submit")
+
+    if submit:
+        score = 0
+        score += 1 if defect_rate < 1 else 0
+        score += 1 if fp_yield >= 95 else 0
+        score += 1 if downtime_events == 0 else 0
+        score += 1 if scrap_units <= 2 else 0
+        score += 1 if calibration_misses == 0 else 0
+
+        if score == 5:
+            recommendation = "✅ Excellent - Keep it up!"
+        elif 3 <= score <= 4:
+            recommendation = "⚠️ Caution - Monitor closely."
+        else:
+            recommendation = "❌ Immediate Action Needed!"
+
+        new_row = {
+            'Date': entry_date,
+            'Daily Defect Rate (%)': defect_rate,
+            'First Pass Yield (%)': fp_yield,
+            'Downtime Events (#)': downtime_events,
+            'Scrap Units (#)': scrap_units,
+            'Calibration Misses (#)': calibration_misses,
+            'Daily CTQ Health Score': score,
+            'Recommendation': recommendation
+        }
+        ctq_data = pd.concat([ctq_data, pd.DataFrame([new_row])], ignore_index=True)
+        ctq_data.to_csv(ctq_csv, index=False)
+        st.success(f"Entry for {entry_date} saved!")
+
+    st.subheader("\U0001F4C9 Recent CTQ Records")
+    st.dataframe(ctq_data.tail(10))
 
 elif page == "Customer Rework Report":
     st.title("\U0001F527 Customer Rework Report")
@@ -107,7 +210,6 @@ elif page == "Customer Rework Report":
         if internal_view:
             st.metric(label="Total Defects", value=total_defects)
 
-        # Download buttons
         st.subheader("📥 Download Customer Report")
 
         def convert_df_to_excel(df):
