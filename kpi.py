@@ -29,6 +29,24 @@ except FileNotFoundError:
 st.sidebar.title("Navigation")
 page = st.sidebar.radio("Go to", ("KPI Dashboard", "Daily CTQ Tracker"))
 
+kpi_options = {
+    "First Pass Yield (%)": "95%+",
+    "Retest Rate (%)": "<5%",
+    "Units Tested per Shift": "120 Units",
+    "Average Testing Cycle Time (min)": "<5 minutes",
+    "Equipment Downtime (minutes)": "<120 minutes",
+    "Mean Time to Repair (MTTR) (min)": "<30 minutes",
+    "Mean Time Between Failures (MTBF) (hours)": ">100 hours",
+    "Testing Cost per Unit ($)": "<$2.00",
+    "Scrap/Rework Cost ($)": "<$500",
+    "Root Cause Attempt Rate (%)": "90%+",
+    "Corrective Action Completion Rate (%)": "95%+",
+    "5S Audit Score (%)": "95%+",
+    "Safety Incidents/Near Misses (#)": "0",
+    "Cross-Training Rate (%)": "80%+",
+    "Improvement Ideas Submitted (#)": "≥3 ideas"
+}
+
 if page == "KPI Dashboard":
     st.title("\U0001F4CA KPI Dashboard")
 
@@ -37,8 +55,9 @@ if page == "KPI Dashboard":
         st.subheader("Enter KPI Data:")
         kpi_date = st.date_input("Date", value=date.today())
         category = st.selectbox("Category", ["Quality", "Efficiency", "Downtime", "Cost", "Problem Solving", "Safety/5S", "Employee Engagement"])
-        kpi_name = st.text_input("KPI Name")
-        target = st.text_input("Target Value")
+        kpi_name = st.selectbox("KPI Name", list(kpi_options.keys()))
+        default_target = kpi_options.get(kpi_name, "")
+        target = st.text_input("Target Value", value=default_target)
         actual = st.text_input("Actual Value")
         notes = st.text_area("Notes/Actions")
         submit_kpi = st.form_submit_button("Submit KPI")
@@ -46,8 +65,8 @@ if page == "KPI Dashboard":
     if submit_kpi:
         # Determine Status
         try:
-            actual_val = float(actual.replace('%','').replace('$',''))
-            target_val = float(target.replace('%','').replace('$',''))
+            actual_val = float(actual.replace('%','').replace('$','').replace('Units','').replace('minutes','').replace('hours','').strip())
+            target_val = float(target.replace('%','').replace('$','').replace('Units','').replace('minutes','').replace('hours','').strip())
             if "<" in target:
                 status = "Met" if actual_val < target_val else "Missed"
             elif ">" in target:
