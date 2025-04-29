@@ -3,3 +3,4 @@ pandas
 matplotlib
 seaborn
 plotly>=5.0.0
+fpdf
